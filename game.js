@@ -1,246 +1,655 @@
-// Game State
-const gameState = {
-    player1: {
-        score: 0,
-        twoPointers: 0,
-        threePointers: 0,
-        misses: 0
+// Game Configuration
+const CONFIG = {
+    canvas: {
+        width: 1000,
+        height: 600
     },
-    player2: {
-        score: 0,
-        twoPointers: 0,
-        threePointers: 0,
-        misses: 0
+    court: {
+        threePointLine: 237.5,
+        paintWidth: 160,
+        rimRadius: 18
     },
-    gameOver: false,
-    winningScore: 50
+    player: {
+        size: 20,
+        speed: 3,
+        sprintSpeed: 5,
+        shootRange: 400
+    },
+    ball: {
+        size: 10,
+        shootSpeed: 8
+    },
+    game: {
+        shotClockDuration: 24,
+        quarterDuration: 720, // 12 minutes = 720 seconds
+        winningScore: 50
+    }
 };
 
-// Sound Effects (using Web Audio API for beeps)
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+// Game State
+class GameState {
+    constructor() {
+        this.reset();
+    }
 
-function playSound(frequency, duration) {
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.frequency.value = frequency;
-    oscillator.type = 'sine';
-    
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-    
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + duration);
-}
-
-function playScoredSound(points) {
-    if (points === 2) {
-        playSound(523.25, 0.2); // C5
-    } else if (points === 3) {
-        playSound(659.25, 0.15); // E5
-        setTimeout(() => playSound(783.99, 0.2), 100); // G5
+    reset() {
+        this.quarter = 1;
+        this.timeRemaining = CONFIG.game.quarterDuration;
+        this.shotClock = CONFIG.game.shotClockDuration;
+        this.paused = false;
+        this.gameOver = false;
+        this.winner = null;
+        
+        this.player1 = {
+            x: 150,
+            y: 300,
+            vx: 0,
+            vy: 0,
+            color: '#4169e1',
+            hasBall: true,
+            score: 0,
+            stats: {
+                fgMade: 0,
+                fgAttempts: 0,
+                threeMade: 0,
+                threeAttempts: 0,
+                steals: 0
+            }
+        };
+        
+        this.player2 = {
+            x: 850,
+            y: 300,
+            vx: 0,
+            vy: 0,
+            color: '#dc143c',
+            hasBall: false,
+            score: 0,
+            stats: {
+                fgMade: 0,
+                fgAttempts: 0,
+                threeMade: 0,
+                threeAttempts: 0,
+                steals: 0
+            }
+        };
+        
+        this.ball = {
+            x: 150,
+            y: 300,
+            vx: 0,
+            vy: 0,
+            inAir: false,
+            shooter: null,
+            targetX: 0,
+            targetY: 0,
+            arc: 0,
+            arcProgress: 0
+        };
+        
+        this.lastPossession = 1;
     }
 }
 
-function playMissSound() {
-    playSound(196.00, 0.3); // G3 (lower, sadder sound)
-}
-
-function playWinSound() {
-    playSound(523.25, 0.15); // C5
-    setTimeout(() => playSound(659.25, 0.15), 150); // E5
-    setTimeout(() => playSound(783.99, 0.3), 300); // G5
-}
-
-// Update Display
-function updateDisplay() {
-    // Update scores
-    document.getElementById('score1').textContent = gameState.player1.score;
-    document.getElementById('score2').textContent = gameState.player2.score;
+// Game Class
+class Game {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.canvas.width = CONFIG.canvas.width;
+        this.canvas.height = CONFIG.canvas.height;
+        
+        this.state = new GameState();
+        this.keys = {};
+        this.lastTime = 0;
+        
+        this.init();
+    }
     
-    // Update stats
-    document.getElementById('twoPointers1').textContent = gameState.player1.twoPointers;
-    document.getElementById('threePointers1').textContent = gameState.player1.threePointers;
-    document.getElementById('misses1').textContent = gameState.player1.misses;
+    init() {
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            this.keys[e.key] = true;
+            if (e.key === 'Escape') {
+                this.togglePause();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            this.keys[e.key] = false;
+        });
+        
+        // Start game loop
+        requestAnimationFrame((time) => this.gameLoop(time));
+        
+        // Start timers
+        setInterval(() => this.updateTimers(), 1000);
+    }
     
-    document.getElementById('twoPointers2').textContent = gameState.player2.twoPointers;
-    document.getElementById('threePointers2').textContent = gameState.player2.threePointers;
-    document.getElementById('misses2').textContent = gameState.player2.misses;
-}
-
-// Add to Game Log
-function addToLog(message, playerClass) {
-    const logDiv = document.getElementById('log');
-    const entry = document.createElement('div');
-    entry.className = `log-entry ${playerClass}`;
+    gameLoop(currentTime) {
+        const deltaTime = currentTime - this.lastTime;
+        this.lastTime = currentTime;
+        
+        if (!this.state.paused && !this.state.gameOver) {
+            this.update(deltaTime);
+        }
+        
+        this.render();
+        requestAnimationFrame((time) => this.gameLoop(time));
+    }
     
-    const timestamp = new Date().toLocaleTimeString();
-    entry.textContent = `[${timestamp}] ${message}`;
+    update(deltaTime) {
+        this.handleInput();
+        this.updatePhysics();
+        this.checkCollisions();
+        this.updateBall();
+    }
     
-    logDiv.insertBefore(entry, logDiv.firstChild);
+    handleInput() {
+        const p1 = this.state.player1;
+        const p2 = this.state.player2;
+        
+        // Player 1 movement (WASD)
+        p1.vx = 0;
+        p1.vy = 0;
+        const p1Speed = this.keys['Shift'] ? CONFIG.player.sprintSpeed : CONFIG.player.speed;
+        
+        if (this.keys['w'] || this.keys['W']) p1.vy = -p1Speed;
+        if (this.keys['s'] || this.keys['S']) p1.vy = p1Speed;
+        if (this.keys['a'] || this.keys['A']) p1.vx = -p1Speed;
+        if (this.keys['d'] || this.keys['D']) p1.vx = p1Speed;
+        
+        // Player 1 shoot/steal (SPACE)
+        if (this.keys[' '] && !this.state.ball.inAir) {
+            if (p1.hasBall) {
+                this.shoot(p1, 1);
+                this.keys[' '] = false;
+            } else {
+                this.attemptSteal(p1, p2, 1);
+            }
+        }
+        
+        // Player 2 movement (Arrow keys)
+        p2.vx = 0;
+        p2.vy = 0;
+        const p2Speed = this.keys['Shift'] ? CONFIG.player.sprintSpeed : CONFIG.player.speed;
+        
+        if (this.keys['ArrowUp']) p2.vy = -p2Speed;
+        if (this.keys['ArrowDown']) p2.vy = p2Speed;
+        if (this.keys['ArrowLeft']) p2.vx = -p2Speed;
+        if (this.keys['ArrowRight']) p2.vx = p2Speed;
+        
+        // Player 2 shoot/steal (ENTER)
+        if (this.keys['Enter'] && !this.state.ball.inAir) {
+            if (p2.hasBall) {
+                this.shoot(p2, 2);
+                this.keys['Enter'] = false;
+            } else {
+                this.attemptSteal(p2, p1, 2);
+            }
+        }
+    }
     
-    // Keep only last 20 entries
-    while (logDiv.children.length > 20) {
-        logDiv.removeChild(logDiv.lastChild);
+    updatePhysics() {
+        const p1 = this.state.player1;
+        const p2 = this.state.player2;
+        
+        // Update player positions
+        p1.x += p1.vx;
+        p1.y += p1.vy;
+        p2.x += p2.vx;
+        p2.y += p2.vy;
+        
+        // Keep players in bounds
+        this.keepInBounds(p1);
+        this.keepInBounds(p2);
+        
+        // Ball follows player with possession
+        if (!this.state.ball.inAir) {
+            if (p1.hasBall) {
+                this.state.ball.x = p1.x;
+                this.state.ball.y = p1.y;
+            } else if (p2.hasBall) {
+                this.state.ball.x = p2.x;
+                this.state.ball.y = p2.y;
+            }
+        }
+    }
+    
+    keepInBounds(player) {
+        const margin = CONFIG.player.size;
+        player.x = Math.max(margin, Math.min(CONFIG.canvas.width - margin, player.x));
+        player.y = Math.max(margin, Math.min(CONFIG.canvas.height - margin, player.y));
+    }
+    
+    checkCollisions() {
+        const p1 = this.state.player1;
+        const p2 = this.state.player2;
+        const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        
+        if (dist < CONFIG.player.size * 2) {
+            // Push players apart
+            const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+            const overlap = CONFIG.player.size * 2 - dist;
+            
+            p1.x -= Math.cos(angle) * overlap / 2;
+            p1.y -= Math.sin(angle) * overlap / 2;
+            p2.x += Math.cos(angle) * overlap / 2;
+            p2.y += Math.sin(angle) * overlap / 2;
+        }
+    }
+    
+    shoot(player, playerNum) {
+        const ball = this.state.ball;
+        
+        // Determine target (basket)
+        const basketX = playerNum === 1 ? CONFIG.canvas.width - 30 : 30;
+        const basketY = CONFIG.canvas.height / 2;
+        
+        // Calculate distance to basket
+        const distance = Math.hypot(basketX - player.x, basketY - player.y);
+        
+        // Set ball trajectory
+        ball.inAir = true;
+        ball.shooter = playerNum;
+        ball.targetX = basketX;
+        ball.targetY = basketY;
+        ball.arcProgress = 0;
+        ball.arc = distance / 2; // Arc height based on distance
+        
+        player.hasBall = false;
+        
+        // Update stats
+        player.stats.fgAttempts++;
+        const isThreePointer = distance > CONFIG.court.threePointLine;
+        if (isThreePointer) {
+            player.stats.threeAttempts++;
+        }
+        
+        // Calculate accuracy (closer = better)
+        const accuracy = Math.max(0.3, 1 - (distance / CONFIG.player.shootRange));
+        const randomFactor = Math.random();
+        
+        // Determine if shot is successful
+        setTimeout(() => {
+            if (randomFactor < accuracy) {
+                this.scoreBasket(playerNum, isThreePointer);
+            } else {
+                this.missShot(playerNum);
+            }
+        }, 800);
+    }
+    
+    scoreBasket(playerNum, isThreePointer) {
+        const player = playerNum === 1 ? this.state.player1 : this.state.player2;
+        const points = isThreePointer ? 3 : 2;
+        
+        player.score += points;
+        player.stats.fgMade++;
+        if (isThreePointer) {
+            player.stats.threeMade++;
+        }
+        
+        // Play sound
+        this.playSound(800, 0.2);
+        
+        // Reset possession to other player
+        this.resetPossession(playerNum === 1 ? 2 : 1);
+        
+        // Update UI
+        this.updateUI();
+        
+        // Check for winner
+        if (player.score >= CONFIG.game.winningScore) {
+            this.endGame(playerNum);
+        }
+    }
+    
+    missShot(playerNum) {
+        // Play miss sound
+        this.playSound(200, 0.3);
+        
+        // Rebound goes to defensive player
+        this.resetPossession(playerNum === 1 ? 2 : 1);
+    }
+    
+    resetPossession(playerNum) {
+        this.state.ball.inAir = false;
+        this.state.shotClock = CONFIG.game.shotClockDuration;
+        
+        if (playerNum === 1) {
+            this.state.player1.hasBall = true;
+            this.state.player2.hasBall = false;
+            this.state.player1.x = 150;
+            this.state.player1.y = 300;
+        } else {
+            this.state.player1.hasBall = false;
+            this.state.player2.hasBall = true;
+            this.state.player2.x = 850;
+            this.state.player2.y = 300;
+        }
+        
+        this.state.lastPossession = playerNum;
+    }
+    
+    attemptSteal(defender, ballHandler, defenderNum) {
+        const dist = Math.hypot(ballHandler.x - defender.x, ballHandler.y - defender.y);
+        
+        if (dist < CONFIG.player.size * 2.5) {
+            // Successful steal
+            if (Math.random() < 0.3) {
+                ballHandler.hasBall = false;
+                defender.hasBall = true;
+                defender.stats.steals++;
+                this.state.shotClock = CONFIG.game.shotClockDuration;
+                this.playSound(600, 0.15);
+                this.updateUI();
+            }
+        }
+    }
+    
+    updateBall() {
+        if (this.state.ball.inAir) {
+            this.state.ball.arcProgress += 0.02;
+            
+            if (this.state.ball.arcProgress >= 1) {
+                this.state.ball.arcProgress = 1;
+            }
+            
+            // Calculate ball position along arc
+            const startX = this.state.ball.shooter === 1 ? this.state.player1.x : this.state.player2.x;
+            const startY = this.state.ball.shooter === 1 ? this.state.player1.y : this.state.player2.y;
+            
+            this.state.ball.x = startX + (this.state.ball.targetX - startX) * this.state.ball.arcProgress;
+            this.state.ball.y = startY + (this.state.ball.targetY - startY) * this.state.ball.arcProgress - 
+                                Math.sin(this.state.ball.arcProgress * Math.PI) * this.state.ball.arc;
+        }
+    }
+    
+    updateTimers() {
+        if (this.state.paused || this.state.gameOver) return;
+        
+        // Update shot clock
+        if (this.state.shotClock > 0) {
+            this.state.shotClock--;
+            document.getElementById('shotClock').textContent = this.state.shotClock;
+            
+            // Update shot clock color
+            const shotClockEl = document.getElementById('shotClock');
+            if (this.state.shotClock <= 5) {
+                shotClockEl.className = 'shot-clock-value critical';
+            } else if (this.state.shotClock <= 10) {
+                shotClockEl.className = 'shot-clock-value warning';
+            } else {
+                shotClockEl.className = 'shot-clock-value';
+            }
+        } else {
+            // Shot clock violation - turnover
+            this.resetPossession(this.state.lastPossession === 1 ? 2 : 1);
+        }
+        
+        // Update game time
+        if (this.state.timeRemaining > 0) {
+            this.state.timeRemaining--;
+            const minutes = Math.floor(this.state.timeRemaining / 60);
+            const seconds = this.state.timeRemaining % 60;
+            document.getElementById('timer').textContent = 
+                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        } else {
+            // Quarter ended
+            if (this.state.quarter < 4) {
+                this.state.quarter++;
+                this.state.timeRemaining = CONFIG.game.quarterDuration;
+                document.getElementById('quarter').textContent = this.state.quarter;
+            } else {
+                // Game over - check scores
+                if (this.state.player1.score !== this.state.player2.score) {
+                    this.endGame(this.state.player1.score > this.state.player2.score ? 1 : 2);
+                } else {
+                    // Overtime
+                    this.state.quarter++;
+                    this.state.timeRemaining = 300; // 5 minute OT
+                    document.getElementById('quarter').textContent = 'OT' + (this.state.quarter - 4);
+                }
+            }
+        }
+    }
+    
+    updateUI() {
+        document.getElementById('p1Score').textContent = this.state.player1.score;
+        document.getElementById('p2Score').textContent = this.state.player2.score;
+        
+        const p1 = this.state.player1.stats;
+        const p2 = this.state.player2.stats;
+        
+        document.getElementById('p1FG').textContent = `${p1.fgMade}/${p1.fgAttempts}`;
+        document.getElementById('p13PT').textContent = `${p1.threeMade}/${p1.threeAttempts}`;
+        document.getElementById('p1STL').textContent = p1.steals;
+        
+        document.getElementById('p2FG').textContent = `${p2.fgMade}/${p2.fgAttempts}`;
+        document.getElementById('p23PT').textContent = `${p2.threeMade}/${p2.threeAttempts}`;
+        document.getElementById('p2STL').textContent = p2.steals;
+    }
+    
+    render() {
+        this.ctx.clearRect(0, 0, CONFIG.canvas.width, CONFIG.canvas.height);
+        
+        this.drawCourt();
+        this.drawPlayers();
+        this.drawBall();
+    }
+    
+    drawCourt() {
+        const ctx = this.ctx;
+        const w = CONFIG.canvas.width;
+        const h = CONFIG.canvas.height;
+        
+        // Court background
+        ctx.fillStyle = '#2d5016';
+        ctx.fillRect(0, 0, w, h);
+        
+        // Court lines
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 3;
+        
+        // Half court line
+        ctx.beginPath();
+        ctx.moveTo(w / 2, 0);
+        ctx.lineTo(w / 2, h);
+        ctx.stroke();
+        
+        // Center circle
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2, 60, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Left basket
+        ctx.fillStyle = '#ff6b35';
+        ctx.beginPath();
+        ctx.arc(30, h / 2, CONFIG.court.rimRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'white';
+        ctx.stroke();
+        
+        // Right basket
+        ctx.beginPath();
+        ctx.arc(w - 30, h / 2, CONFIG.court.rimRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'white';
+        ctx.stroke();
+        
+        // Three-point lines (simplified)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.lineWidth = 2;
+        
+        // Left three-point arc
+        ctx.beginPath();
+        ctx.arc(30, h / 2, CONFIG.court.threePointLine, -Math.PI / 2, Math.PI / 2);
+        ctx.stroke();
+        
+        // Right three-point arc
+        ctx.beginPath();
+        ctx.arc(w - 30, h / 2, CONFIG.court.threePointLine, Math.PI / 2, -Math.PI / 2);
+        ctx.stroke();
+        
+        // Paint areas
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.strokeRect(30, (h - CONFIG.court.paintWidth) / 2, 150, CONFIG.court.paintWidth);
+        ctx.strokeRect(w - 180, (h - CONFIG.court.paintWidth) / 2, 150, CONFIG.court.paintWidth);
+    }
+    
+    drawPlayers() {
+        this.drawPlayer(this.state.player1, '1');
+        this.drawPlayer(this.state.player2, '2');
+    }
+    
+    drawPlayer(player, number) {
+        const ctx = this.ctx;
+        
+        // Player circle
+        ctx.fillStyle = player.color;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, CONFIG.player.size, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Player border
+        ctx.strokeStyle = player.hasBall ? '#ffd700' : 'white';
+        ctx.lineWidth = player.hasBall ? 4 : 2;
+        ctx.stroke();
+        
+        // Player number
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(number, player.x, player.y);
+        
+        // Direction indicator
+        if (Math.abs(player.vx) > 0 || Math.abs(player.vy) > 0) {
+            const angle = Math.atan2(player.vy, player.vx);
+            ctx.strokeStyle = player.color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(player.x, player.y);
+            ctx.lineTo(
+                player.x + Math.cos(angle) * (CONFIG.player.size + 10),
+                player.y + Math.sin(angle) * (CONFIG.player.size + 10)
+            );
+            ctx.stroke();
+        }
+    }
+    
+    drawBall() {
+        const ctx = this.ctx;
+        const ball = this.state.ball;
+        
+        if (!ball.inAir || ball.arcProgress < 1) {
+            // Ball
+            ctx.fillStyle = '#ff6b35';
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, CONFIG.ball.size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Ball lines
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            
+            // Ball highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.arc(ball.x - 3, ball.y - 3, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    playSound(frequency, duration) {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        } catch (e) {
+            // Audio not supported
+        }
+    }
+    
+    togglePause() {
+        if (this.state.gameOver) return;
+        
+        this.state.paused = !this.state.paused;
+        const modal = document.getElementById('pauseMenu');
+        modal.classList.toggle('show', this.state.paused);
+    }
+    
+    resume() {
+        this.state.paused = false;
+        document.getElementById('pauseMenu').classList.remove('show');
+    }
+    
+    endGame(winner) {
+        this.state.gameOver = true;
+        this.state.winner = winner;
+        
+        const modal = document.getElementById('winnerModal');
+        const winnerText = document.getElementById('winnerText');
+        const finalStats = document.getElementById('finalStats');
+        
+        const winnerPlayer = winner === 1 ? this.state.player1 : this.state.player2;
+        const loserPlayer = winner === 1 ? this.state.player2 : this.state.player1;
+        const winnerColor = winner === 1 ? '#4169e1' : '#dc143c';
+        const winnerBadge = winner === 1 ? '🔵' : '🔴';
+        
+        winnerText.innerHTML = `${winnerBadge} PLAYER ${winner} WINS! ${winnerBadge}`;
+        winnerText.style.color = winnerColor;
+        
+        const calcPct = (made, attempts) => attempts > 0 ? ((made / attempts) * 100).toFixed(1) : '0.0';
+        
+        finalStats.innerHTML = `
+            <div>
+                <h3 style="color: ${winnerColor}">🏆 PLAYER ${winner} - CHAMPION</h3>
+                <div>Final Score: ${winnerPlayer.score} points</div>
+                <div>FG: ${winnerPlayer.stats.fgMade}/${winnerPlayer.stats.fgAttempts} (${calcPct(winnerPlayer.stats.fgMade, winnerPlayer.stats.fgAttempts)}%)</div>
+                <div>3PT: ${winnerPlayer.stats.threeMade}/${winnerPlayer.stats.threeAttempts} (${calcPct(winnerPlayer.stats.threeMade, winnerPlayer.stats.threeAttempts)}%)</div>
+                <div>Steals: ${winnerPlayer.stats.steals}</div>
+            </div>
+            <div style="opacity: 0.7; margin-top: 20px;">
+                <h3>PLAYER ${winner === 1 ? 2 : 1}</h3>
+                <div>Final Score: ${loserPlayer.score} points</div>
+                <div>FG: ${loserPlayer.stats.fgMade}/${loserPlayer.stats.fgAttempts} (${calcPct(loserPlayer.stats.fgMade, loserPlayer.stats.fgAttempts)}%)</div>
+                <div>3PT: ${loserPlayer.stats.threeMade}/${loserPlayer.stats.threeAttempts} (${calcPct(loserPlayer.stats.threeMade, loserPlayer.stats.threeAttempts)}%)</div>
+                <div>Steals: ${loserPlayer.stats.steals}</div>
+            </div>
+        `;
+        
+        modal.classList.add('show');
+        this.playSound(800, 0.5);
+    }
+    
+    reset() {
+        this.state.reset();
+        this.updateUI();
+        document.getElementById('quarter').textContent = this.state.quarter;
+        document.getElementById('timer').textContent = '12:00';
+        document.getElementById('shotClock').textContent = '24';
+        document.getElementById('pauseMenu').classList.remove('show');
+        document.getElementById('winnerModal').classList.remove('show');
     }
 }
 
-// Shoot Function
-function shoot(player, points) {
-    if (gameState.gameOver) return;
-    
-    const playerKey = `player${player}`;
-    gameState[playerKey].score += points;
-    
-    if (points === 2) {
-        gameState[playerKey].twoPointers++;
-    } else if (points === 3) {
-        gameState[playerKey].threePointers++;
-    }
-    
-    // Animate score
-    const scoreElement = document.getElementById(`score${player}`);
-    scoreElement.classList.add('pulse');
-    setTimeout(() => scoreElement.classList.remove('pulse'), 500);
-    
-    // Play sound
-    playScoredSound(points);
-    
-    // Add to log
-    const playerName = `Player ${player}`;
-    addToLog(`${playerName} SCORES ${points} POINTS! 🔥 Total: ${gameState[playerKey].score}`, `player${player}-action`);
-    
-    updateDisplay();
-    checkWinner();
-}
-
-// Miss Function
-function miss(player) {
-    if (gameState.gameOver) return;
-    
-    const playerKey = `player${player}`;
-    gameState[playerKey].misses++;
-    
-    // Play miss sound
-    playMissSound();
-    
-    // Add to log
-    const playerName = `Player ${player}`;
-    addToLog(`${playerName} MISSES! 😬`, `player${player}-action`);
-    
-    updateDisplay();
-}
-
-// Check Winner
-function checkWinner() {
-    if (gameState.player1.score >= gameState.winningScore) {
-        endGame(1);
-    } else if (gameState.player2.score >= gameState.winningScore) {
-        endGame(2);
-    }
-}
-
-// End Game
-function endGame(winner) {
-    gameState.gameOver = true;
-    playWinSound();
-    
-    const modal = document.getElementById('winnerModal');
-    const winnerText = document.getElementById('winnerText');
-    const finalStats = document.getElementById('finalStats');
-    
-    const winnerColor = winner === 1 ? '#4169e1' : '#dc143c';
-    const winnerBadge = winner === 1 ? '🔵' : '🔴';
-    
-    winnerText.innerHTML = `${winnerBadge} PLAYER ${winner} WINS! ${winnerBadge}`;
-    winnerText.style.color = winnerColor;
-    
-    const loser = winner === 1 ? 2 : 1;
-    const winnerData = gameState[`player${winner}`];
-    const loserData = gameState[`player${loser}`];
-    
-    finalStats.innerHTML = `
-        <div style="margin-bottom: 20px;">
-            <h3 style="color: ${winnerColor}; margin-bottom: 10px;">🏆 PLAYER ${winner} - CHAMPION</h3>
-            <div>Final Score: ${winnerData.score} points</div>
-            <div>2-Pointers Made: ${winnerData.twoPointers}</div>
-            <div>3-Pointers Made: ${winnerData.threePointers}</div>
-            <div>Misses: ${winnerData.misses}</div>
-            <div>Shooting %: ${calculateShootingPercentage(winnerData)}%</div>
-        </div>
-        <div style="opacity: 0.7;">
-            <h3 style="margin-bottom: 10px;">PLAYER ${loser}</h3>
-            <div>Final Score: ${loserData.score} points</div>
-            <div>2-Pointers Made: ${loserData.twoPointers}</div>
-            <div>3-Pointers Made: ${loserData.threePointers}</div>
-            <div>Misses: ${loserData.misses}</div>
-            <div>Shooting %: ${calculateShootingPercentage(loserData)}%</div>
-        </div>
-    `;
-    
-    modal.classList.add('show');
-    
-    addToLog(`🏆 GAME OVER! PLAYER ${winner} WINS WITH ${winnerData.score} POINTS! 🏆`, `player${winner}-action`);
-}
-
-// Calculate Shooting Percentage
-function calculateShootingPercentage(playerData) {
-    const totalShots = playerData.twoPointers + playerData.threePointers + playerData.misses;
-    if (totalShots === 0) return 0;
-    const madeShotsValue = playerData.twoPointers + playerData.threePointers;
-    return Math.round((madeShotsValue / totalShots) * 100);
-}
-
-// Reset Game
-function resetGame() {
-    gameState.player1 = {
-        score: 0,
-        twoPointers: 0,
-        threePointers: 0,
-        misses: 0
-    };
-    gameState.player2 = {
-        score: 0,
-        twoPointers: 0,
-        threePointers: 0,
-        misses: 0
-    };
-    gameState.gameOver = false;
-    
-    updateDisplay();
-    
-    const modal = document.getElementById('winnerModal');
-    modal.classList.remove('show');
-    
-    const logDiv = document.getElementById('log');
-    logDiv.innerHTML = '';
-    
-    addToLog('🏀 NEW GAME STARTED! First to 50 points wins! 🏀', '');
-}
-
-// Keyboard Controls
-document.addEventListener('keydown', (e) => {
-    if (gameState.gameOver) return;
-    
-    const key = e.key.toLowerCase();
-    
-    // Player 1 controls
-    if (key === 'a') shoot(1, 2);
-    else if (key === 's') shoot(1, 3);
-    else if (key === 'd') miss(1);
-    
-    // Player 2 controls
-    else if (key === 'j') shoot(2, 2);
-    else if (key === 'k') shoot(2, 3);
-    else if (key === 'l') miss(2);
-});
-
-// Initialize game on load
+// Initialize game
+let game;
 window.addEventListener('load', () => {
-    updateDisplay();
-    addToLog('🏀 GAME READY! First to 50 points wins! 🏀', '');
-    addToLog('Player 1: A=2pt, S=3pt, D=Miss | Player 2: J=2pt, K=3pt, L=Miss', '');
+    game = new Game();
 });
