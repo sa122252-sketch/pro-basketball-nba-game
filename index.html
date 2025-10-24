@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>NBA 2K Style Basketball - 2 Player Game</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -58,8 +61,49 @@
             <canvas id="gameCanvas"></canvas>
         </div>
 
-        <!-- Controls Info -->
-        <div class="controls-info">
+        <!-- Mobile Touch Controls -->
+        <div id="mobileControls" class="mobile-controls">
+            <!-- Player 1 Controls (Left Side) -->
+            <div class="mobile-control-panel player1-panel">
+                <div class="mobile-joystick" id="p1Joystick">
+                    <div class="joystick-base">
+                        <div class="joystick-stick" id="p1Stick"></div>
+                    </div>
+                </div>
+                <div class="mobile-buttons">
+                    <button class="mobile-btn shoot-btn" id="p1ShootBtn">
+                        <span class="btn-icon">🏀</span>
+                        <span class="btn-text">SHOOT</span>
+                    </button>
+                    <button class="mobile-btn sprint-btn" id="p1SprintBtn">
+                        <span class="btn-icon">⚡</span>
+                        <span class="btn-text">SPRINT</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Player 2 Controls (Right Side) -->
+            <div class="mobile-control-panel player2-panel">
+                <div class="mobile-joystick" id="p2Joystick">
+                    <div class="joystick-base">
+                        <div class="joystick-stick" id="p2Stick"></div>
+                    </div>
+                </div>
+                <div class="mobile-buttons">
+                    <button class="mobile-btn shoot-btn" id="p2ShootBtn">
+                        <span class="btn-icon">🏀</span>
+                        <span class="btn-text">SHOOT</span>
+                    </button>
+                    <button class="mobile-btn sprint-btn" id="p2SprintBtn">
+                        <span class="btn-icon">⚡</span>
+                        <span class="btn-text">SPRINT</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Info (Desktop) -->
+        <div class="controls-info desktop-only">
             <div class="control-section">
                 <h3>🔵 PLAYER 1 CONTROLS</h3>
                 <div class="controls-grid">

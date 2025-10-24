@@ -103,11 +103,21 @@ class Game {
         this.keys = {};
         this.lastTime = 0;
         
+        // Mobile touch controls state
+        this.touch = {
+            p1Joystick: { active: false, x: 0, y: 0, touchId: null },
+            p2Joystick: { active: false, x: 0, y: 0, touchId: null },
+            p1Shoot: false,
+            p2Shoot: false,
+            p1Sprint: false,
+            p2Sprint: false
+        };
+        
         this.init();
     }
     
     init() {
-        // Event listeners
+        // Keyboard event listeners
         document.addEventListener('keydown', (e) => {
             this.keys[e.key] = true;
             if (e.key === 'Escape') {
@@ -119,11 +129,166 @@ class Game {
             this.keys[e.key] = false;
         });
         
+        // Mobile touch controls
+        this.initMobileControls();
+        
+        // Responsive canvas
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+        
         // Start game loop
         requestAnimationFrame((time) => this.gameLoop(time));
         
         // Start timers
         setInterval(() => this.updateTimers(), 1000);
+    }
+    
+    resizeCanvas() {
+        const container = document.querySelector('.canvas-container');
+        const containerWidth = container.clientWidth - 40;
+        const containerHeight = container.clientHeight - 40;
+        
+        const scale = Math.min(
+            containerWidth / CONFIG.canvas.width,
+            containerHeight / CONFIG.canvas.height,
+            1
+        );
+        
+        this.canvas.style.width = (CONFIG.canvas.width * scale) + 'px';
+        this.canvas.style.height = (CONFIG.canvas.height * scale) + 'px';
+    }
+    
+    initMobileControls() {
+        // Player 1 Joystick
+        this.setupJoystick('p1Joystick', 'p1Stick', (x, y) => {
+            this.touch.p1Joystick.x = x;
+            this.touch.p1Joystick.y = y;
+        });
+        
+        // Player 2 Joystick
+        this.setupJoystick('p2Joystick', 'p2Stick', (x, y) => {
+            this.touch.p2Joystick.x = x;
+            this.touch.p2Joystick.y = y;
+        });
+        
+        // Player 1 Shoot Button
+        this.setupButton('p1ShootBtn', () => {
+            this.touch.p1Shoot = true;
+        }, () => {
+            this.touch.p1Shoot = false;
+        });
+        
+        // Player 2 Shoot Button
+        this.setupButton('p2ShootBtn', () => {
+            this.touch.p2Shoot = true;
+        }, () => {
+            this.touch.p2Shoot = false;
+        });
+        
+        // Player 1 Sprint Button
+        this.setupButton('p1SprintBtn', () => {
+            this.touch.p1Sprint = true;
+        }, () => {
+            this.touch.p1Sprint = false;
+        });
+        
+        // Player 2 Sprint Button
+        this.setupButton('p2SprintBtn', () => {
+            this.touch.p2Sprint = true;
+        }, () => {
+            this.touch.p2Sprint = false;
+        });
+    }
+    
+    setupJoystick(baseId, stickId, callback) {
+        const base = document.getElementById(baseId);
+        const stick = document.getElementById(stickId);
+        if (!base || !stick) return;
+        
+        const joystickData = baseId === 'p1Joystick' ? this.touch.p1Joystick : this.touch.p2Joystick;
+        
+        const handleStart = (e) => {
+            e.preventDefault();
+            joystickData.active = true;
+            if (e.touches && e.touches.length > 0) {
+                joystickData.touchId = e.touches[0].identifier;
+            }
+        };
+        
+        const handleMove = (e) => {
+            if (!joystickData.active) return;
+            e.preventDefault();
+            
+            let clientX, clientY;
+            if (e.touches) {
+                const touch = Array.from(e.touches).find(t => t.identifier === joystickData.touchId);
+                if (!touch) return;
+                clientX = touch.clientX;
+                clientY = touch.clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            
+            const rect = base.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            let deltaX = clientX - centerX;
+            let deltaY = clientY - centerY;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            const maxDistance = rect.width / 2 - 25;
+            
+            if (distance > maxDistance) {
+                const angle = Math.atan2(deltaY, deltaX);
+                deltaX = Math.cos(angle) * maxDistance;
+                deltaY = Math.sin(angle) * maxDistance;
+            }
+            
+            stick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
+            
+            const normalizedX = deltaX / maxDistance;
+            const normalizedY = deltaY / maxDistance;
+            
+            callback(normalizedX, normalizedY);
+        };
+        
+        const handleEnd = (e) => {
+            if (e.touches && e.touches.length > 0) {
+                const stillTouching = Array.from(e.touches).some(t => t.identifier === joystickData.touchId);
+                if (stillTouching) return;
+            }
+            
+            joystickData.active = false;
+            joystickData.touchId = null;
+            stick.style.transform = 'translate(-50%, -50%)';
+            callback(0, 0);
+        };
+        
+        base.addEventListener('touchstart', handleStart, { passive: false });
+        base.addEventListener('touchmove', handleMove, { passive: false });
+        base.addEventListener('touchend', handleEnd);
+        base.addEventListener('touchcancel', handleEnd);
+    }
+    
+    setupButton(buttonId, onPress, onRelease) {
+        const button = document.getElementById(buttonId);
+        if (!button) return;
+        
+        button.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            onPress();
+        }, { passive: false });
+        
+        button.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            onRelease();
+        }, { passive: false });
+        
+        button.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            onRelease();
+        }, { passive: false });
     }
     
     gameLoop(currentTime) {
@@ -149,41 +314,57 @@ class Game {
         const p1 = this.state.player1;
         const p2 = this.state.player2;
         
-        // Player 1 movement (WASD)
+        // Player 1 movement (WASD or Touch Joystick)
         p1.vx = 0;
         p1.vy = 0;
-        const p1Speed = this.keys['Shift'] ? CONFIG.player.sprintSpeed : CONFIG.player.speed;
+        const p1Speed = (this.keys['Shift'] || this.touch.p1Sprint) ? CONFIG.player.sprintSpeed : CONFIG.player.speed;
         
+        // Keyboard controls
         if (this.keys['w'] || this.keys['W']) p1.vy = -p1Speed;
         if (this.keys['s'] || this.keys['S']) p1.vy = p1Speed;
         if (this.keys['a'] || this.keys['A']) p1.vx = -p1Speed;
         if (this.keys['d'] || this.keys['D']) p1.vx = p1Speed;
         
-        // Player 1 shoot/steal (SPACE)
-        if (this.keys[' '] && !this.state.ball.inAir) {
+        // Touch joystick controls
+        if (this.touch.p1Joystick.active) {
+            p1.vx = this.touch.p1Joystick.x * p1Speed;
+            p1.vy = this.touch.p1Joystick.y * p1Speed;
+        }
+        
+        // Player 1 shoot/steal (SPACE or Touch Button)
+        if ((this.keys[' '] || this.touch.p1Shoot) && !this.state.ball.inAir) {
             if (p1.hasBall) {
                 this.shoot(p1, 1);
                 this.keys[' '] = false;
+                this.touch.p1Shoot = false;
             } else {
                 this.attemptSteal(p1, p2, 1);
             }
         }
         
-        // Player 2 movement (Arrow keys)
+        // Player 2 movement (Arrow keys or Touch Joystick)
         p2.vx = 0;
         p2.vy = 0;
-        const p2Speed = this.keys['Shift'] ? CONFIG.player.sprintSpeed : CONFIG.player.speed;
+        const p2Speed = (this.keys['Shift'] || this.touch.p2Sprint) ? CONFIG.player.sprintSpeed : CONFIG.player.speed;
         
+        // Keyboard controls
         if (this.keys['ArrowUp']) p2.vy = -p2Speed;
         if (this.keys['ArrowDown']) p2.vy = p2Speed;
         if (this.keys['ArrowLeft']) p2.vx = -p2Speed;
         if (this.keys['ArrowRight']) p2.vx = p2Speed;
         
-        // Player 2 shoot/steal (ENTER)
-        if (this.keys['Enter'] && !this.state.ball.inAir) {
+        // Touch joystick controls
+        if (this.touch.p2Joystick.active) {
+            p2.vx = this.touch.p2Joystick.x * p2Speed;
+            p2.vy = this.touch.p2Joystick.y * p2Speed;
+        }
+        
+        // Player 2 shoot/steal (ENTER or Touch Button)
+        if ((this.keys['Enter'] || this.touch.p2Shoot) && !this.state.ball.inAir) {
             if (p2.hasBall) {
                 this.shoot(p2, 2);
                 this.keys['Enter'] = false;
+                this.touch.p2Shoot = false;
             } else {
                 this.attemptSteal(p2, p1, 2);
             }
