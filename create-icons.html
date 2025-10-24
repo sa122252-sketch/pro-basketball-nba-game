@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator</title>
+</head>
+<body>
+    <h2>Generating Icons...</h2>
+    <div id="status"></div>
+    <script>
+        const sizes = [152, 167, 180, 192, 512];
+        const status = document.getElementById('status');
+        
+        function createIcon(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#1a1a2e');
+            gradient.addColorStop(0.5, '#16213e');
+            gradient.addColorStop(1, '#0f3460');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Border
+            ctx.strokeStyle = '#ff6b35';
+            ctx.lineWidth = size * 0.05;
+            ctx.strokeRect(ctx.lineWidth / 2, ctx.lineWidth / 2, size - ctx.lineWidth, size - ctx.lineWidth);
+            
+            // Basketball
+            const ballSize = size * 0.5;
+            const centerX = size / 2;
+            const centerY = size / 2;
+            
+            // Ball shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.beginPath();
+            ctx.arc(centerX + ballSize * 0.05, centerY + ballSize * 0.05, ballSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Ball
+            const ballGradient = ctx.createRadialGradient(
+                centerX - ballSize * 0.2, centerY - ballSize * 0.2, ballSize * 0.1,
+                centerX, centerY, ballSize / 2
+            );
+            ballGradient.addColorStop(0, '#ff8c61');
+            ballGradient.addColorStop(1, '#ff6b35');
+            ctx.fillStyle = ballGradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, ballSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Ball lines
+            ctx.strokeStyle = '#1a1a2e';
+            ctx.lineWidth = size * 0.01;
+            
+            // Vertical line
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY - ballSize / 2);
+            ctx.lineTo(centerX, centerY + ballSize / 2);
+            ctx.stroke();
+            
+            // Horizontal line
+            ctx.beginPath();
+            ctx.moveTo(centerX - ballSize / 2, centerY);
+            ctx.lineTo(centerX + ballSize / 2, centerY);
+            ctx.stroke();
+            
+            // Curved lines
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, ballSize / 2, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, ballSize / 3, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.arc(centerX - ballSize * 0.2, centerY - ballSize * 0.2, ballSize * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            return canvas;
+        }
+        
+        sizes.forEach(size => {
+            const canvas = createIcon(size);
+            const link = document.createElement('a');
+            link.download = `icon-${size}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.textContent = `Download icon-${size}.png`;
+            link.style.display = 'block';
+            link.style.margin = '10px';
+            link.click();
+            status.innerHTML += `✅ Created icon-${size}.png<br>`;
+        });
+        
+        status.innerHTML += '<br><strong>All icons generated! Check your downloads folder.</strong>';
+    </script>
+</body>
+</html>
