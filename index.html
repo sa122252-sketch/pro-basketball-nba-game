@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA 2-Player Showdown - First to 50!</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏀 NBA 2-PLAYER SHOWDOWN 🏀</h1>
+            <p class="subtitle">FIRST TO 50 POINTS WINS!</p>
+        </header>
+
+        <div class="game-board">
+            <!-- Player 1 Section -->
+            <div class="player-section player1">
+                <div class="player-header">
+                    <h2>PLAYER 1</h2>
+                    <div class="team-badge">🔵</div>
+                </div>
+                <div class="score-display" id="score1">0</div>
+                <div class="stats">
+                    <div class="stat">
+                        <span class="stat-label">2-Pointers:</span>
+                        <span class="stat-value" id="twoPointers1">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">3-Pointers:</span>
+                        <span class="stat-value" id="threePointers1">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Misses:</span>
+                        <span class="stat-value" id="misses1">0</span>
+                    </div>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-2pt" onclick="shoot(1, 2)">
+                        <span class="btn-label">2-POINTER</span>
+                        <span class="btn-key">Press A</span>
+                    </button>
+                    <button class="btn btn-3pt" onclick="shoot(1, 3)">
+                        <span class="btn-label">3-POINTER</span>
+                        <span class="btn-key">Press S</span>
+                    </button>
+                    <button class="btn btn-miss" onclick="miss(1)">
+                        <span class="btn-label">MISS</span>
+                        <span class="btn-key">Press D</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- VS Divider -->
+            <div class="vs-divider">
+                <div class="vs-text">VS</div>
+                <div class="basketball">🏀</div>
+            </div>
+
+            <!-- Player 2 Section -->
+            <div class="player-section player2">
+                <div class="player-header">
+                    <h2>PLAYER 2</h2>
+                    <div class="team-badge">🔴</div>
+                </div>
+                <div class="score-display" id="score2">0</div>
+                <div class="stats">
+                    <div class="stat">
+                        <span class="stat-label">2-Pointers:</span>
+                        <span class="stat-value" id="twoPointers2">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">3-Pointers:</span>
+                        <span class="stat-value" id="threePointers2">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Misses:</span>
+                        <span class="stat-value" id="misses2">0</span>
+                    </div>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-2pt" onclick="shoot(2, 2)">
+                        <span class="btn-label">2-POINTER</span>
+                        <span class="btn-key">Press J</span>
+                    </button>
+                    <button class="btn btn-3pt" onclick="shoot(2, 3)">
+                        <span class="btn-label">3-POINTER</span>
+                        <span class="btn-key">Press K</span>
+                    </button>
+                    <button class="btn btn-miss" onclick="miss(2)">
+                        <span class="btn-label">MISS</span>
+                        <span class="btn-key">Press L</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-log">
+            <h3>🎯 GAME LOG</h3>
+            <div id="log" class="log-content"></div>
+        </div>
+
+        <button class="reset-btn" onclick="resetGame()">🔄 NEW GAME</button>
+    </div>
+
+    <!-- Winner Modal -->
+    <div id="winnerModal" class="modal">
+        <div class="modal-content">
+            <h2 class="winner-title">🏆 GAME OVER! 🏆</h2>
+            <div id="winnerText" class="winner-text"></div>
+            <div id="finalStats" class="final-stats"></div>
+            <button class="btn-modal" onclick="resetGame()">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

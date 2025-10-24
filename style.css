@@ -1,0 +1,438 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial Black', 'Arial Bold', Arial, sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: white;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 40px;
+    animation: fadeInDown 0.8s ease-out;
+}
+
+header h1 {
+    font-size: 3rem;
+    color: #ff6b35;
+    text-shadow: 0 0 20px rgba(255, 107, 53, 0.5),
+                 0 0 40px rgba(255, 107, 53, 0.3);
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+}
+
+.subtitle {
+    font-size: 1.5rem;
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    letter-spacing: 3px;
+}
+
+.game-board {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+    animation: fadeIn 1s ease-out;
+}
+
+.player-section {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 30px;
+    backdrop-filter: blur(10px);
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.player-section:hover {
+    transform: translateY(-5px);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.player1 {
+    border-top: 5px solid #4169e1;
+}
+
+.player2 {
+    border-top: 5px solid #dc143c;
+}
+
+.player-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.player-header h2 {
+    font-size: 2rem;
+    letter-spacing: 2px;
+}
+
+.team-badge {
+    font-size: 3rem;
+}
+
+.score-display {
+    font-size: 6rem;
+    font-weight: bold;
+    text-align: center;
+    margin: 30px 0;
+    color: #ffd700;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    transition: all 0.3s ease;
+}
+
+.score-display.pulse {
+    animation: pulse 0.5s ease;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+.stats {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat:last-child {
+    border-bottom: none;
+}
+
+.stat-label {
+    color: #a0a0a0;
+    font-size: 1rem;
+}
+
+.stat-value {
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.btn {
+    padding: 20px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    text-transform: uppercase;
+}
+
+.btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-label {
+    font-size: 1.2rem;
+}
+
+.btn-key {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.btn-2pt {
+    background: linear-gradient(135deg, #4169e1, #1e90ff);
+    color: white;
+}
+
+.btn-2pt:hover {
+    background: linear-gradient(135deg, #1e90ff, #4169e1);
+}
+
+.btn-3pt {
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #1a1a2e;
+}
+
+.btn-3pt:hover {
+    background: linear-gradient(135deg, #ffed4e, #ffd700);
+}
+
+.btn-miss {
+    background: linear-gradient(135deg, #dc143c, #ff4757);
+    color: white;
+}
+
+.btn-miss:hover {
+    background: linear-gradient(135deg, #ff4757, #dc143c);
+}
+
+.vs-divider {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+.vs-text {
+    font-size: 4rem;
+    font-weight: bold;
+    color: #ff6b35;
+    text-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+}
+
+.basketball {
+    font-size: 5rem;
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+}
+
+.game-log {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.game-log h3 {
+    color: #ff6b35;
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+}
+
+.log-content {
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.log-entry {
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.3s ease;
+}
+
+.log-entry.player1-action {
+    border-left: 4px solid #4169e1;
+}
+
+.log-entry.player2-action {
+    border-left: 4px solid #dc143c;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.reset-btn {
+    display: block;
+    margin: 0 auto;
+    padding: 20px 50px;
+    background: linear-gradient(135deg, #ff6b35, #ff8c61);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.reset-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(255, 107, 53, 0.5);
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    padding: 50px;
+    border-radius: 30px;
+    text-align: center;
+    border: 5px solid #ffd700;
+    box-shadow: 0 0 50px rgba(255, 215, 0, 0.5);
+    animation: zoomIn 0.5s ease;
+}
+
+@keyframes zoomIn {
+    from {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.winner-title {
+    font-size: 3rem;
+    color: #ffd700;
+    margin-bottom: 20px;
+    text-shadow: 0 0 30px rgba(255, 215, 0, 0.7);
+}
+
+.winner-text {
+    font-size: 2.5rem;
+    margin-bottom: 30px;
+    font-weight: bold;
+}
+
+.final-stats {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    font-size: 1.2rem;
+}
+
+.btn-modal {
+    padding: 20px 50px;
+    background: linear-gradient(135deg, #4169e1, #1e90ff);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-modal:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(65, 105, 225, 0.5);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .game-board {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+    }
+    
+    .vs-divider {
+        order: 2;
+        flex-direction: row;
+        padding: 20px 0;
+    }
+    
+    .player1 {
+        order: 1;
+    }
+    
+    .player2 {
+        order: 3;
+    }
+    
+    header h1 {
+        font-size: 2rem;
+    }
+    
+    .subtitle {
+        font-size: 1rem;
+    }
+}
+
+/* Scrollbar Styling */
+.log-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.log-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+}
+
+.log-content::-webkit-scrollbar-thumb {
+    background: #ff6b35;
+    border-radius: 10px;
+}
+
+.log-content::-webkit-scrollbar-thumb:hover {
+    background: #ff8c61;
+}
